@@ -1,0 +1,40 @@
+hash: 0121819b7b747f7a78bd5522d43f16a334bae2da4f253633954b4b130b091423
+updated: 2017-10-17T01:12:26.41238642-07:00
+imports:
+- name: github.com/appscode/go
+  version: f719fe83ed5dd094e07c4456dc68e1227131d581
+  subpackages:
+  - context
+  - log
+  - log/golog
+  - runtime
+  - version
+- name: github.com/cpuguy83/go-md2man
+  version: 71acacd42f85e5e82f70a55327789582a5200a90
+  subpackages:
+  - md2man
+- name: github.com/fsnotify/fsnotify
+  version: 4da3e2cfbabc9f751898f250b49f2439785783a1
+- name: github.com/golang/glog
+  version: 44145f04b68cf362d9c4df2182967c2275eaefed
+- name: github.com/google/uuid
+  version: 7e072fc3a7be179aee6d3359e46015aa8c995314
+- name: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/russross/blackfriday
+  version: 300106c228d52c8941d4b3de6054a6062a86dda3
+- name: github.com/shurcooL/sanitized_anchor_name
+  version: 10ef21a441db47d8b13ebcc5fd2310f636973c77
+- name: github.com/spf13/cobra
+  version: 7b2c5ac9fc04fc5efafb60700713d4fa609b777b
+  subpackages:
+  - doc
+- name: github.com/spf13/pflag
+  version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
+- name: golang.org/x/sys
+  version: 7ddbeae9ae08c6a06a59597f0c9edbc5ff2444ce
+  subpackages:
+  - unix
+- name: gopkg.in/yaml.v2
+  version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
+testImports: []

@@ -65,29 +65,26 @@ func runWatcher() {
 		for {
 			select {
 			case event := <-watcher.Events:
-				log.Infoln("Event: --------------------------------------", event, event.Op)
+				log.Infoln("Event: --------------------------------------", event)
+				if filepath.Clean(event.Name) != watchFile {
+					continue
+				}
 
 				switch event.Op {
 				case fsnotify.Create:
-					if filepath.Clean(event.Name) == watchFile {
-						if err = watcher.Add(watchFile); err != nil {
-							log.Errorln("error:", err)
-						}
+					if err = watcher.Add(watchFile); err != nil {
+						log.Errorln("error:", err)
 					}
 				case fsnotify.Write:
-					if filepath.Clean(event.Name) == watchFile {
-						if err = printMD5(watchFile); err == nil {
-							log.Errorln("error:", err)
-						}
-						if err := runCmd(reloadCmd); err != nil {
-							log.Errorln(err)
-						}
+					if err = printMD5(watchFile); err == nil {
+						log.Errorln("error:", err)
 					}
-				case fsnotify.Remove:
-					if filepath.Clean(event.Name) == watchFile {
-						if err = watcher.Remove(watchFile); err != nil {
-							log.Errorln("error:", err)
-						}
+					if err := runCmd(reloadCmd); err != nil {
+						log.Errorln(err)
+					}
+				case fsnotify.Remove, fsnotify.Rename:
+					if err = watcher.Remove(watchFile); err != nil {
+						log.Errorln("error:", err)
 					}
 				}
 			case err := <-watcher.Errors:

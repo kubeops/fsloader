@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"sync/atomic"
 
 	"github.com/appscode/go/log"
@@ -59,10 +58,9 @@ func runCmd(path string) error {
 }
 
 func fileWatchTest() {
-	fmt.Println("-----------------File Watch Test Began----------------")
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		fmt.Println("Error Occured ***************")
+		log.Errorln(err)
 	}
 	defer watcher.Close()
 
@@ -71,37 +69,39 @@ func fileWatchTest() {
 		for {
 			select {
 			case event := <-watcher.Events:
-				log.Infoln("Event:-------------------------------------------------------", event, reflect.TypeOf(event), event.String())
 				if event.Op&fsnotify.Write == fsnotify.Write {
-					log.Infoln("modified file:", event.Name)
+					log.Infoln("modified file: ", event.Name)
+					if err := runCmd(bashFile); err != nil {
+						log.Errorln(err)
+					}
 				}
 				if event.Op&fsnotify.Remove == fsnotify.Remove {
-					log.Infoln("Removed file:---------------", event.Name)
+					log.Infoln("Removed file: ", event.Name)
 
 					if filepath.Clean(event.Name) == mountFile {
 						err = printMD5(mountFile)
 						if err != nil {
-							log.Errorln("fffffffffffffffffff Error", err)
+							log.Errorln(err)
 						}
 						err = watcher.Add(mountFile)
 						if err != nil {
-							log.Errorln("wwwwwwwwwwwwwwwwwww Error", err)
+							log.Errorln(err)
 						}
 					}
 				}
 			case err := <-watcher.Errors:
-				log.Infoln("error:", err)
+				log.Infoln(err)
 			}
 		}
 	}()
 
 	err = watcher.Add(mountFile)
 	if err != nil {
-		log.Fatalln("1st Error", err)
+		log.Infoln(err)
 	}
 	err = watcher.Add(mountDir)
 	if err != nil {
-		log.Fatalln("2nd Error", err)
+		log.Infoln(err)
 	}
 	<-done
 }

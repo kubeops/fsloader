@@ -10,14 +10,16 @@ import (
 	"sync/atomic"
 
 	"github.com/appscode/go/log"
+	"github.com/appscode/go/sets"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 )
 
 var (
-	watchFile string
-	watchDir  string
-	reloadCmd string
+	fileset    sets.String
+	watchFiles []string
+	watchDir   string
+	reloadCmd  string
 )
 
 func NewRunCmd() *cobra.Command {
@@ -28,9 +30,9 @@ func NewRunCmd() *cobra.Command {
 			runWatcher()
 		},
 	}
-	cmd.Flags().StringVar(&watchFile, "watch-file", "", "Volume location where the file will be mounted")
-	cmd.Flags().StringVar(&watchDir, "watch-dir", "", "Volume location where the file will be mounted")
-	cmd.Flags().StringVar(&reloadCmd, "reload-cmd", "", "Bash script that will be run on every change of the file")
+	cmd.Flags().StringSliceVar(&watchFiles, "watch-files", nil, "Files to be watched")
+	cmd.Flags().StringVar(&watchDir, "watch-dir", "", "Dir that contains the files to be watched")
+	cmd.Flags().StringVar(&reloadCmd, "reload-cmd", "", "Command to be executed when files are modified")
 	return cmd
 }
 
@@ -54,6 +56,8 @@ func runCmd(path string) error {
 }
 
 func runWatcher() {
+	fileset = sets.NewString(watchFiles...)
+
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Errorln(err)
@@ -66,24 +70,26 @@ func runWatcher() {
 			select {
 			case event := <-watcher.Events:
 				log.Infoln("Event: --------------------------------------", event)
-				if filepath.Clean(event.Name) != watchFile {
+
+				filename := filepath.Clean(event.Name)
+				if !fileset.Has(filename) {
 					continue
 				}
 
 				switch event.Op {
 				case fsnotify.Create:
-					if err = watcher.Add(watchFile); err != nil {
+					if err = watcher.Add(filename); err != nil {
 						log.Errorln("error:", err)
 					}
 				case fsnotify.Write:
-					if err = printMD5(watchFile); err == nil {
+					if err = printMD5(filename); err == nil {
 						log.Errorln("error:", err)
 					}
 					if err := runCmd(reloadCmd); err != nil {
 						log.Errorln(err)
 					}
 				case fsnotify.Remove, fsnotify.Rename:
-					if err = watcher.Remove(watchFile); err != nil {
+					if err = watcher.Remove(filename); err != nil {
 						log.Errorln("error:", err)
 					}
 				}
@@ -93,8 +99,10 @@ func runWatcher() {
 		}
 	}()
 
-	if err = watcher.Add(watchFile); err != nil {
-		log.Errorf("error watching file %s. Reason: %s", watchFile, err)
+	for _, filename := range watchFiles {
+		if err = watcher.Add(filename); err != nil {
+			log.Errorf("error watching file %s. Reason: %s", filename, err)
+		}
 	}
 	if err = watcher.Add(watchDir); err != nil {
 		log.Errorf("error watching dir %s. Reason: %s", watchDir, err)

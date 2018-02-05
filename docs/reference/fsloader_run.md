@@ -13,10 +13,10 @@ fsloader run [flags]
 ### Options
 
 ```
-  -h, --help                help for run
-      --reload-cmd string   Bash script that will be run on every change of the file
-      --watch-dir string    Volume location where the file will be mounted
-      --watch-file string   Volume location where the file will be mounted
+  -h, --help                      help for run
+      --reload-cmd string         Command to be executed when files are modified
+      --watch-dir string          Dir that contains the files to be watched
+      --watch-files stringSlice   Files to be watched
 ```
 
 ### Options inherited from parent commands

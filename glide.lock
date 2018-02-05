@@ -1,5 +1,5 @@
 hash: 30b43a5bb67d2c462cce48d62f41361fe1d379580f0e359ab6def71647cf5b0f
-updated: 2018-02-04T22:43:15.01220347-08:00
+updated: 2018-02-05T00:26:08.402475244-08:00
 imports:
 - name: github.com/appscode/go
   version: 437df2b94ce2ea60464ff580c10462fbeb3e8f52
@@ -8,6 +8,7 @@ imports:
   - log
   - log/golog
   - runtime
+  - sets
   - version
 - name: github.com/cpuguy83/go-md2man
   version: 71acacd42f85e5e82f70a55327789582a5200a90

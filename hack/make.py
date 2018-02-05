@@ -97,7 +97,7 @@ def gen():
 def build_cmd(name):
     cfg = libbuild.BIN_MATRIX[name]
     entrypoint='*.go'
-    compress = libbuild.ENV in ['prod']
+    compress = False
     upx = True
     if cfg['type'] == 'go':
         if 'distro' in cfg:

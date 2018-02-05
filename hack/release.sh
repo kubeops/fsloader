@@ -14,6 +14,6 @@ rm -rf $REPO_ROOT/dist
 ./hack/make.py push
 ./hack/make.py push
 
-rm dist/.tag
+rm -rf dist/.tag
 
 popd

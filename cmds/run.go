@@ -15,7 +15,9 @@ import (
 )
 
 var (
-	mountFile, mountDir, bashFile string
+	watchFile string
+	watchDir  string
+	reloadCmd string
 )
 
 func NewRunCmd() *cobra.Command {
@@ -23,29 +25,23 @@ func NewRunCmd() *cobra.Command {
 		Use:   "run",
 		Short: "Runs fsloader",
 		Run: func(cmd *cobra.Command, args []string) {
-			fileWatchTest()
+			runWatcher()
 		},
 	}
-	cmd.Flags().StringVar(&mountFile, "mount-file", "", "Volume location where the file will be mounted")
-	cmd.Flags().StringVar(&mountDir, "mount-dir", "", "Volume location where the file will be mounted")
-	cmd.Flags().StringVar(&bashFile, "boot-cmd", "", "Bash script that will be run on every change of the file")
+	cmd.Flags().StringVar(&watchFile, "watch-file", "", "Volume location where the file will be mounted")
+	cmd.Flags().StringVar(&watchDir, "watch-dir", "", "Volume location where the file will be mounted")
+	cmd.Flags().StringVar(&reloadCmd, "reload-cmd", "", "Bash script that will be run on every change of the file")
 	return cmd
 }
 
-var updateReceived, mountPerformed uint64
+var reloadCount uint64
 
-func incUpdateReceivedCounter() {
-	atomic.AddUint64(&updateReceived, 1)
-	log.Infoln("Update Received:", atomic.LoadUint64(&updateReceived))
-}
-
-func incMountCounter() {
-	atomic.AddUint64(&mountPerformed, 1)
-	log.Infoln("Mount Performed:", atomic.LoadUint64(&mountPerformed))
+func incReloadCount() {
+	atomic.AddUint64(&reloadCount, 1)
+	log.Infoln("reloaded:", atomic.LoadUint64(&reloadCount))
 }
 
 func runCmd(path string) error {
-	log.Infoln("calling boot file to execute")
 	output, err := exec.Command("sh", "-c", path).CombinedOutput()
 	msg := fmt.Sprintf("%v", string(output))
 	log.Infoln("Output:\n", msg)
@@ -53,11 +49,11 @@ func runCmd(path string) error {
 		log.Errorln("failed to run cmd")
 		return fmt.Errorf("error restarting %v: %v", msg, err)
 	}
-	log.Infoln("boot file executed")
+	incReloadCount()
 	return nil
 }
 
-func fileWatchTest() {
+func runWatcher() {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Errorln(err)
@@ -69,39 +65,42 @@ func fileWatchTest() {
 		for {
 			select {
 			case event := <-watcher.Events:
-				if event.Op&fsnotify.Write == fsnotify.Write {
-					log.Infoln("modified file: ", event.Name)
-					if err := runCmd(bashFile); err != nil {
-						log.Errorln(err)
-					}
-				}
-				if event.Op&fsnotify.Remove == fsnotify.Remove {
-					log.Infoln("Removed file: ", event.Name)
+				log.Infoln("Event: --------------------------------------", event, event.Op)
 
-					if filepath.Clean(event.Name) == mountFile {
-						err = printMD5(mountFile)
-						if err != nil {
+				switch event.Op {
+				case fsnotify.Create:
+					if filepath.Clean(event.Name) == watchFile {
+						if err = watcher.Add(watchFile); err != nil {
+							log.Errorln("error:", err)
+						}
+					}
+				case fsnotify.Write:
+					if filepath.Clean(event.Name) == watchFile {
+						if err = printMD5(watchFile); err == nil {
+							log.Errorln("error:", err)
+						}
+						if err := runCmd(reloadCmd); err != nil {
 							log.Errorln(err)
 						}
-						err = watcher.Add(mountFile)
-						if err != nil {
-							log.Errorln(err)
+					}
+				case fsnotify.Remove:
+					if filepath.Clean(event.Name) == watchFile {
+						if err = watcher.Remove(watchFile); err != nil {
+							log.Errorln("error:", err)
 						}
 					}
 				}
 			case err := <-watcher.Errors:
-				log.Infoln(err)
+				log.Errorln("error:", err)
 			}
 		}
 	}()
 
-	err = watcher.Add(mountFile)
-	if err != nil {
-		log.Infoln(err)
+	if err = watcher.Add(watchFile); err != nil {
+		log.Errorf("error watching file %s. Reason: %s", watchFile, err)
 	}
-	err = watcher.Add(mountDir)
-	if err != nil {
-		log.Infoln(err)
+	if err = watcher.Add(watchDir); err != nil {
+		log.Errorf("error watching dir %s. Reason: %s", watchDir, err)
 	}
 	<-done
 }

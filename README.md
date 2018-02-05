@@ -10,10 +10,3 @@ Many applications require configuration via some combination of config files. Th
 should be decoupled from image content in order to keep containerized applications portable.
 
 `Fsloader` watches a specified file. In case of any update in file data `Fsloader` updates the mounted file and run an additional bash script.
-
----
-
-**Fsloader collects anonymous usage statistics to help us learn how the software is being used and how we can improve it.
-To disable stats collection, run the binary with the flag** `--analytics=false`.
-
----

@@ -9,11 +9,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const (
-	gaTrackingCode = "UA-62096468-20"
-)
-
-func NewRootCmd(version string) *cobra.Command {
+func NewRootCmd() *cobra.Command {
 	var (
 		enableAnalytics = true
 	)

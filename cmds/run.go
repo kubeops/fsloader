@@ -7,9 +7,9 @@ import (
 	"github.com/appscode/go/ioutil"
 	"github.com/appscode/go/log"
 	"github.com/appscode/go/signals"
-	"github.com/appscode/kutil/meta"
-	"github.com/appscode/kutil/tools/fsnotify"
 	"github.com/spf13/cobra"
+	"kmodules.xyz/client-go/meta"
+	"kmodules.xyz/client-go/tools/fsnotify"
 )
 
 var (

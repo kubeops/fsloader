@@ -1,5 +1,4 @@
-# Copyright 2019 AppsCode Inc.
-# Copyright 2016 The Kubernetes Authors.
+# Copyright AppsCode Inc. and Contributors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +14,8 @@
 
 SHELL=/bin/bash -o pipefail
 
-# The binary to build (just the basename).
+GO_PKG   := kubeops.dev
+REPO     := $(notdir $(shell pwd))
 BIN      := fsloader
 COMPRESS ?= no
 
@@ -43,27 +43,35 @@ endif
 ### These variables should not need tweaking.
 ###
 
-SRC_DIRS := *.go cmds hack/gendocs # directories which hold app source (not vendored)
+SRC_PKGS := cmds
+SRC_DIRS := $(SRC_PKGS) *.go hack/gendocs # directories which hold app source (not vendored)
 
 DOCKER_PLATFORMS := linux/amd64 linux/arm linux/arm64
-BIN_PLATFORMS    := $(DOCKER_PLATFORMS) windows/amd64 darwin/amd64
+BIN_PLATFORMS    := $(DOCKER_PLATFORMS) windows/amd64 darwin/amd64 darwin/arm64
 
 # Used internally.  Users should pass GOOS and/or GOARCH.
 OS   := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
 ARCH := $(if $(GOARCH),$(GOARCH),$(shell go env GOARCH))
 
-GO_VERSION       ?= 1.12.6
-BUILD_IMAGE      ?= appscode/golang-dev:$(GO_VERSION)-stretch
+GO_VERSION       ?= 1.18
+BUILD_IMAGE      ?= appscode/golang-dev:$(GO_VERSION)
 
-OUTBIN = bin/$(OS)_$(ARCH)/$(BIN)
+OUTBIN = bin/$(BIN)-$(OS)-$(ARCH)
 ifeq ($(OS),windows)
-  OUTBIN = bin/$(OS)_$(ARCH)/$(BIN).exe
+  OUTBIN := bin/$(BIN)-$(OS)-$(ARCH).exe
+  BIN := $(BIN).exe
 endif
 
 # Directories that we need created to build/test.
 BUILD_DIRS  := bin/$(OS)_$(ARCH)     \
                .go/bin/$(OS)_$(ARCH) \
-               .go/cache
+               .go/cache             \
+               hack/config           \
+               $(HOME)/.credentials  \
+               $(HOME)/.kube         \
+               $(HOME)/.minikube
+
+DOCKER_REPO_ROOT := /go/src/$(GO_PKG)/$(REPO)
 
 # If you want to build all binaries, see the 'all-build' rule.
 # If you want to build all containers, see the 'all-container' rule.
@@ -80,14 +88,18 @@ build-%:
 	    GOARCH=$(lastword $(subst _, ,$*))
 
 all-build: $(addprefix build-, $(subst /,_, $(BIN_PLATFORMS)))
+ifeq ($(COMPRESS),yes)
+	@cd bin; \
+	sha256sum $(patsubst $(BIN)-windows-%.tar.gz,$(BIN)-windows-%.zip, $(addsuffix .tar.gz, $(addprefix $(BIN)-, $(subst /,-, $(BIN_PLATFORMS))))) > $(BIN)-checksums.txt
+endif
 
 version:
-	@echo version=$(VERSION)
-	@echo version_strategy=$(version_strategy)
-	@echo git_tag=$(git_tag)
-	@echo git_branch=$(git_branch)
-	@echo commit_hash=$(commit_hash)
-	@echo commit_timestamp=$(commit_timestamp)
+	@echo ::set-output name=version::$(VERSION)
+	@echo ::set-output name=version_strategy::$(version_strategy)
+	@echo ::set-output name=git_tag::$(git_tag)
+	@echo ::set-output name=git_branch::$(git_branch)
+	@echo ::set-output name=commit_hash::$(commit_hash)
+	@echo ::set-output name=commit_timestamp::$(commit_timestamp)
 
 gen:
 	@true
@@ -105,7 +117,10 @@ fmt: $(BUILD_DIRS)
 	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
 	    $(BUILD_IMAGE)                                          \
-	    ./hack/fmt.sh $(SRC_DIRS)
+	    /bin/bash -c "                                          \
+	        REPO_PKG=$(GO_PKG)                                  \
+	        ./hack/fmt.sh $(SRC_DIRS)                           \
+	    "
 
 build: $(OUTBIN)
 
@@ -143,29 +158,27 @@ $(OUTBIN): .go/$(OUTBIN).stamp
 	        commit_timestamp=$(commit_timestamp)                \
 	        ./hack/build.sh                                     \
 	    "
-	@if [ $(COMPRESS) = yes ] && [ $(OS) != darwin ]; then          \
-		echo "compressing $(OUTBIN)";                               \
-		docker run                                                  \
-		    -i                                                      \
-		    --rm                                                    \
-		    -u $$(id -u):$$(id -g)                                  \
-		    -v $$(pwd):/src                                         \
-		    -w /src                                                 \
-		    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
-		    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \
-		    -v $$(pwd)/.go/cache:/.cache                            \
-		    --env HTTP_PROXY=$(HTTP_PROXY)                          \
-		    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
-		    $(BUILD_IMAGE)                                          \
-		    upx --brute /go/$(OUTBIN);                              \
+	@if ! cmp -s .go/bin/$(OS)_$(ARCH)/$(BIN) $(OUTBIN); then   \
+	    mv .go/bin/$(OS)_$(ARCH)/$(BIN) $(OUTBIN);              \
+	    date >$@;                                               \
 	fi
-	@if ! cmp -s .go/$(OUTBIN) $(OUTBIN); then \
-	    mv .go/$(OUTBIN) $(OUTBIN);            \
-	    date >$@;                              \
-	fi
+ifeq ($(COMPRESS),yes)
+ifeq ($(OS),windows)
+	@echo "compressing $(OUTBIN)";                               \
+	cd bin;                                                      \
+	zip -j $(subst .exe,,$(BIN))-$(OS)-$(ARCH).zip $(subst .exe,,$(BIN))-$(OS)-$(ARCH).exe ../LICENSE.md
+else
+	@echo "compressing $(OUTBIN)";                               \
+	cd bin;                                                      \
+	tar -czvf $(BIN)-$(OS)-$(ARCH).tar.gz $(BIN)-$(OS)-$(ARCH) ../LICENSE.md
+endif
+endif
 	@echo
 
-test: $(BUILD_DIRS)
+.PHONY: test
+test: unit-tests
+
+unit-tests: $(BUILD_DIRS)
 	@docker run                                                 \
 	    -i                                                      \
 	    --rm                                                    \
@@ -182,7 +195,7 @@ test: $(BUILD_DIRS)
 	        ARCH=$(ARCH)                                        \
 	        OS=$(OS)                                            \
 	        VERSION=$(VERSION)                                  \
-	        ./hack/test.sh $(SRC_DIRS)                          \
+	        ./hack/test.sh $(SRC_PKGS)                          \
 	    "
 
 ADDTL_LINTERS   := goconst,gofmt,goimports,unparam
@@ -201,10 +214,9 @@ lint: $(BUILD_DIRS)
 	    -v $$(pwd)/.go/cache:/.cache                            \
 	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
-	    --env GO111MODULE=on                                    \
 	    --env GOFLAGS="-mod=vendor"                             \
 	    $(BUILD_IMAGE)                                          \
-	    golangci-lint run --enable $(ADDTL_LINTERS)
+	    golangci-lint run --enable $(ADDTL_LINTERS) --timeout=10m --skip-files="generated.*\.go$\" --skip-dirs-use-default
 
 $(BUILD_DIRS):
 	@mkdir -p $@
@@ -212,8 +224,51 @@ $(BUILD_DIRS):
 .PHONY: dev
 dev: gen fmt build
 
+.PHONY: verify
+verify: verify-gen verify-modules
+
+.PHONY: verify-modules
+verify-modules:
+	go mod tidy
+	go mod vendor
+	@if !(git diff --exit-code HEAD); then \
+		echo "go module files are out of date"; exit 1; \
+	fi
+
+.PHONY: verify-gen
+verify-gen: gen fmt
+	@if !(git diff --exit-code HEAD); then \
+		echo "files are out of date, run make gen fmt"; exit 1; \
+	fi
+
+.PHONY: add-license
+add-license:
+	@echo "Adding license header"
+	@docker run --rm 	                                 \
+		-u $$(id -u):$$(id -g)                           \
+		-v /tmp:/.cache                                  \
+		-v $$(pwd):$(DOCKER_REPO_ROOT)                   \
+		-w $(DOCKER_REPO_ROOT)                           \
+		--env HTTP_PROXY=$(HTTP_PROXY)                   \
+		--env HTTPS_PROXY=$(HTTPS_PROXY)                 \
+		$(BUILD_IMAGE)                                   \
+		ltag -t "./hack/license" --excludes "vendor contrib" -v
+
+.PHONY: check-license
+check-license:
+	@echo "Checking files for license header"
+	@docker run --rm 	                                 \
+		-u $$(id -u):$$(id -g)                           \
+		-v /tmp:/.cache                                  \
+		-v $$(pwd):$(DOCKER_REPO_ROOT)                   \
+		-w $(DOCKER_REPO_ROOT)                           \
+		--env HTTP_PROXY=$(HTTP_PROXY)                   \
+		--env HTTPS_PROXY=$(HTTPS_PROXY)                 \
+		$(BUILD_IMAGE)                                   \
+		ltag -t "./hack/license" --excludes "vendor contrib" --check -v
+
 .PHONY: ci
-ci: lint test build #cover
+ci: verify check-license lint build #unit-tests cover
 
 .PHONY: qa
 qa:

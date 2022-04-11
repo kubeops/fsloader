@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Kubernetes Authors.
+Copyright AppsCode Inc. and Contributors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 func UpsertArgumentList(baseArgs []string, overrideArgs []string, protectedFlags ...string) []string {
@@ -92,12 +92,11 @@ func ParseArgumentListToMap(arguments []string) map[string]string {
 	resultingMap := map[string]string{}
 	for i, arg := range arguments {
 		key, val, err := parseArgument(arg)
-
 		// Ignore if the first argument doesn't satisfy the criteria, it's most often the binary name
 		// Warn in all other cases, but don't error out. This can happen only if the user has edited the argument list by hand, so they might know what they are doing
 		if err != nil {
 			if i != 0 {
-				glog.Warningf("WARNING: The component argument %q could not be parsed correctly. The argument must be of the form %q. Skipping...", arg, "--")
+				klog.Warningf("WARNING: The component argument %q could not be parsed correctly. The argument must be of the form %q. Skipping...", arg, "--")
 			}
 			continue
 		}

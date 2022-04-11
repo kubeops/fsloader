@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright 2019 AppsCode Inc.
-# Copyright 2016 The Kubernetes Authors.
+# Copyright AppsCode Inc. and Contributors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,8 +35,19 @@ export GOOS="${OS}"
 export GO111MODULE=on
 export GOFLAGS="-mod=vendor"
 
-go install                                              \
-    -installsuffix "static"                             \
+ENFORCE_LICENSE=${ENFORCE_LICENSE:-}
+if [ ! -z "${git_tag:-}" ]; then
+    ENFORCE_LICENSE=true
+fi
+if [ "$ENFORCE_LICENSE" != "true" ]; then
+    ENFORCE_LICENSE=false
+fi
+
+# ref: https://medium.com/golangspec/blocks-in-go-2f68768868f6
+# ref: https://dave.cheney.net/2020/05/02/mid-stack-inlining-in-go
+# -gcflags="all=-N -l" \
+go install \
+    -installsuffix "static" \
     -ldflags "                                          \
       -X main.Version=${VERSION}                        \
       -X main.VersionStrategy=${version_strategy:-}     \
@@ -48,5 +58,5 @@ go install                                              \
       -X main.GoVersion=$(go version | cut -d " " -f 3) \
       -X main.Compiler=$(go env CC)                     \
       -X main.Platform=${OS}/${ARCH}                    \
-    "                                                   \
+    " \
     ./...

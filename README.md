@@ -1,4 +1,4 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/appscode/fsloader)](https://goreportcard.com/report/github.com/appscode/fsloader)
+[![Go Report Card](https://goreportcard.com/badge/kubeops.dev/fsloader)](https://goreportcard.com/report/kubeops.dev/fsloader)
 
 [Website](https://appscode.com) • [Slack](https://slack.appscode.com) • [Twitter](https://twitter.com/AppsCodeHQ)
 

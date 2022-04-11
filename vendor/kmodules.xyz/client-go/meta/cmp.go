@@ -1,3 +1,19 @@
+/*
+Copyright AppsCode Inc. and Contributors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package meta
 
 import (
@@ -9,22 +25,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	cmpOptions = []cmp.Option{
-		cmp.Comparer(func(x, y resource.Quantity) bool {
-			return x.Cmp(y) == 0
-		}),
-		cmp.Comparer(func(x, y *metav1.Time) bool {
-			if x == nil && y == nil {
-				return true
-			}
-			if x != nil && y != nil {
-				return x.Time.Equal(y.Time)
-			}
-			return false
-		}),
-	}
-)
+var cmpOptions = []cmp.Option{
+	cmp.Comparer(func(x, y resource.Quantity) bool {
+		return x.Cmp(y) == 0
+	}),
+	cmp.Comparer(func(x, y *metav1.Time) bool {
+		if x == nil && y == nil {
+			return true
+		}
+		if x != nil && y != nil {
+			return x.Time.Equal(y.Time)
+		}
+		return false
+	}),
+}
 
 func Diff(x, y interface{}) string {
 	return cmp.Diff(x, y, cmpOptions...)
@@ -62,7 +76,7 @@ func EqualAnnotation(x, y map[string]string) bool {
 }
 
 func JsonDiff(old, new interface{}) (string, error) {
-	var json = jsoniter.ConfigFastest
+	json := jsoniter.ConfigFastest
 	oldBytes, err := json.Marshal(old)
 	if err != nil {
 		return "", err

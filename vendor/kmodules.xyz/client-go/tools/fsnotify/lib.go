@@ -1,12 +1,28 @@
+/*
+Copyright AppsCode Inc. and Contributors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package fsnotify
 
 import (
 	"path/filepath"
 	"sync/atomic"
 
-	"github.com/appscode/go/log"
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
+	"k8s.io/klog/v2"
 )
 
 type Watcher struct {
@@ -18,7 +34,7 @@ type Watcher struct {
 
 func (w *Watcher) incReloadCount(filename string) {
 	atomic.AddUint64(&w.reloadCount, 1)
-	log.Infof("file %s reloaded: %d", filename, atomic.LoadUint64(&w.reloadCount))
+	klog.Infof("file %s reloaded: %d", filename, atomic.LoadUint64(&w.reloadCount))
 }
 
 func (w *Watcher) Run(stopCh <-chan struct{}) error {
@@ -37,18 +53,18 @@ func (w *Watcher) Run(stopCh <-chan struct{}) error {
 			case <-stopCh:
 				return
 			case event := <-watcher.Events:
-				log.Debugln("file watcher event: --------------------------------------", event)
+				klog.V(8).Infoln("file watcher event: --------------------------------------", event)
 
 				filename := filepath.Clean(event.Name)
 				if filename == filepath.Join(w.WatchDir, "..data") && event.Op == fsnotify.Create {
 					if err := w.Reload(); err != nil {
-						log.Errorf("error[%s]: %s", filename, err)
+						klog.Errorf("error[%s]: %s", filename, err)
 					} else {
 						w.incReloadCount(filename)
 					}
 				}
 			case err := <-watcher.Errors:
-				log.Errorln("error:", err)
+				klog.Errorln("error:", err)
 			}
 		}
 	}()

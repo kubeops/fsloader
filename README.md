@@ -1,6 +1,6 @@
-[![Go Report Card](https://goreportcard.com/badge/kubeops.dev/fsloader)](https://goreportcard.com/report/kubeops.dev/fsloader)
-
-[Website](https://appscode.com) • [Slack](https://slack.appscode.com) • [Twitter](https://twitter.com/AppsCodeHQ)
+[![Build Status](https://github.com/kubeops/fsloader/workflows/CI/badge.svg)](https://github.com/kubeops/fsloader/actions?workflow=CI)
+[![Slack](https://shields.io/badge/Join_Slack-salck?color=4A154B&logo=slack)](https://slack.appscode.com)
+[![Twitter](https://img.shields.io/twitter/follow/kubeops.svg?style=social&logo=twitter&label=Follow)](https://twitter.com/intent/follow?screen_name=Kubeops)
 
 # fsloader
 Runs commands when a file changes.
